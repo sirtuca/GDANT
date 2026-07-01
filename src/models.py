@@ -10,6 +10,8 @@ geração de documentos ou regras de negócio.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from decimal import Decimal
+from pathlib import Path
 
 
 @dataclass
@@ -21,9 +23,22 @@ class ProcessData:
     Serve como contrato entre o parser e o gerador de documentos.
     """
     
+    # Fonte
+    source_pdf: Path | None = None
+    """Caminho do arquivo PDF de origem"""
+    
+    raw_text: str = ""
+    """Texto bruto extraído do PDF"""
+    
     # Identificação do Processo
     process_number: str = ""
     """Número do processo administrativo"""
+    
+    infraction_number: str = ""
+    """Número da notificação de infração"""
+    
+    judgment_notification_number: str = ""
+    """Número da notificação do julgamento ao contribuinte"""
     
     # Dados do Contribuinte
     taxpayer_name: str = ""
@@ -40,16 +55,7 @@ class ProcessData:
     
     # Endereço
     address: str = ""
-    """Logradouro (rua, avenida, etc.)"""
-    
-    number: str = ""
-    """Número do endereço"""
-    
-    complement: str = ""
-    """Complemento do endereço (apto, sala, etc.)"""
-    
-    district: str = ""
-    """Bairro"""
+    """Endereço completo do contribuinte"""
     
     city: str = ""
     """Cidade"""
@@ -60,16 +66,7 @@ class ProcessData:
     zip_code: str = ""
     """CEP"""
     
-    # Referências ao Processo
-    administrative_process: str = ""
-    """Número do processo administrativo original"""
-    
-    infraction_notice: str = ""
-    """Número da notificação de infração"""
-    
-    notification_number: str = ""
-    """Número da notificação ao contribuinte"""
-    
+    # Datas
     notification_date: str = ""
     """Data da notificação (formato: DD/MM/YYYY)"""
     
@@ -83,7 +80,7 @@ class ProcessData:
     """Número do Aviso de Recebimento (AR) postal"""
     
     # Dados Financeiros
-    debt_amount: float = 0.0
+    debt_amount: Decimal = Decimal("0.0")
     """Valor da dívida em reais"""
     
     # Listas
