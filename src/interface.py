@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from config import Config
+from src.config import Config
 from src.engine import ProcessingEngine
 
 
