@@ -3,9 +3,11 @@
 Interface gráfica do GDANT usando PySide6.
 
 Este módulo implementa apenas a apresentação. Toda lógica de negócio
-é delegada para o módulo processor. A interface é agnóstica em relação
+é delegada para o módulo engine. A interface é agnóstica em relação
 à implementação do processamento.
 """
+
+from __future__ import annotations
 
 from pathlib import Path
 from PySide6.QtWidgets import (
@@ -25,6 +27,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from config import Config
+from engine import ProcessingEngine
 
 
 class MainWindow(QMainWindow):
@@ -44,6 +47,7 @@ class MainWindow(QMainWindow):
         """
         super().__init__()
         self.config = config
+        self.engine = ProcessingEngine()
         
         self.setWindowTitle("GDANT - Gerador de Dívida Ativa")
         self.setGeometry(100, 100, 900, 700)
@@ -262,8 +266,7 @@ class MainWindow(QMainWindow):
         """
         Handler do botão GERAR TERMOS.
         
-        Valida as entradas antes de iniciar o processamento.
-        Nota: A lógica real de processamento é delegada para o processor.
+        Escaneia a pasta de entrada, encontra PDFs e exibe lista no log.
         """
         # Salvar configurações atuais
         self._save_config_values()
@@ -272,20 +275,36 @@ class MainWindow(QMainWindow):
         if not self._validate_inputs():
             return
         
-        self._update_status("Iniciando processamento...")
+        self._update_status("Escaneando pasta de entrada...")
         self.progress_bar.setValue(0)
         self.btn_generate.setEnabled(False)
         
         try:
-            # TODO: Integrar com processor para processamento real
-            # Por enquanto, apenas simular progresso
-            self._update_status("Processamento em andamento...")
-            self.progress_bar.setValue(50)
+            # Escanear pasta de entrada
+            input_path = Path(self.input_folder.text())
+            scan_result = self.engine.scan_input_folder(input_path)
             
-            self._update_status("Processamento concluído com sucesso!")
-            self.progress_bar.setValue(100)
+            # Atualizar barra de progresso com total de PDFs
+            self.progress_bar.setMaximum(scan_result.total)
+            self.progress_bar.setValue(scan_result.total)
+            
+            # Log inicial
+            self._update_status(f"✓ Total de PDFs encontrados: {scan_result.total}")
+            
+            # Listar cada PDF no log
+            for pdf_file in scan_result.pdf_files:
+                self._update_status(f"  → {pdf_file.name}")
+            
+            if scan_result.total == 0:
+                self._update_status("⚠ Nenhum arquivo PDF encontrado na pasta.")
+            else:
+                self._update_status("✓ Pronto para processar.")
+        
+        except ValueError as e:
+            self._update_status(f"✗ Erro: {str(e)}")
+            self.progress_bar.setValue(0)
         except Exception as e:
-            self._update_status(f"Erro durante o processamento: {str(e)}")
+            self._update_status(f"✗ Erro inesperado: {str(e)}")
             self.progress_bar.setValue(0)
         finally:
             self.btn_generate.setEnabled(True)
