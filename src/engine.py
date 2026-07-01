@@ -11,6 +11,7 @@ Integra todos os componentes:
 
 from __future__ import annotations
 
+import traceback
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -169,6 +170,8 @@ class ProcessingEngine:
                 error=f"Erro ao gerar DOCX: {str(e)}",
             )
         except Exception as e:
+            # DIAGNOSTIC: Print complete traceback for debugging
+            traceback.print_exc()
             return ProcessingResult(
                 pdf_path=pdf_path,
                 success=False,
