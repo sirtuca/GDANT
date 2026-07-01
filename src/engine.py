@@ -117,8 +117,22 @@ class ProcessingEngine:
             # 1. Ler PDF
             pdf_text = self.pdf_reader.read(pdf_path)
             
+            # DIAGNOSTIC: Print raw PDF text (first 1000 chars)
+            print("\n" + "="*50)
+            print("===== RAW PDF TEXT =====")
+            print(pdf_text[:1000])
+            print("="*50)
+            
             # 2. Parse dos dados
             process_data = self.parser.parse(pdf_text, source_pdf=pdf_path)
+            
+            # DIAGNOSTIC: Print extracted process data
+            print("\n" + "="*50)
+            print("===== PROCESS DATA =====")
+            print(f"process_number: {process_data.process_number}")
+            print(f"infraction_number: {process_data.infraction_number}")
+            print(f"cpf_cnpj: {process_data.cpf_cnpj}")
+            print("="*50 + "\n")
             
             # 3. Gerar DOCX
             output_filename = pdf_path.stem + ".docx"
