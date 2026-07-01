@@ -37,9 +37,26 @@ class WordGenerator:
 
     # Mapa de placeholders para campos de ProcessData
     PLACEHOLDER_MAP = {
+        # Identificação do Processo
         "PROC": "process_number",
         "AI": "infraction_number",
+        
+        # Identificação do Contribuinte
+        "NOME": "nome",
         "DOC": "cpf_cnpj",
+        
+        # Endereço do Contribuinte
+        "LOG": "logradouro",
+        "NR": "numero",
+        "COMP": "complemento",
+        "BAIRRO": "bairro",
+        "MUN": "municipio",
+        "UF": "uf",
+        "CEP": "cep",
+        
+        # Contato do Contribuinte
+        "FONE": "telefone",
+        "EMAIL": "email",
     }
 
     def generate(
