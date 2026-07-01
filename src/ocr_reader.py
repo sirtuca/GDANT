@@ -25,6 +25,8 @@ import traceback
 from pathlib import Path
 from typing import Optional
 
+from PIL.Image import Image
+
 from src.config import OCR_MIN_TEXT_LENGTH, OCR_DPI
 
 
@@ -53,7 +55,7 @@ class OCRReader:
         Args:
             ocr_min_text_length: Mínimo de caracteres úteis para considerar 
                                texto de pdfplumber suficiente. Se None, usa
-                               valor padrão de src.config.OCR_MIN_TEXT_LENGTH.
+                               valor padrão de OCR_MIN_TEXT_LENGTH.
         """
         self.ocr_min_text_length = ocr_min_text_length or OCR_MIN_TEXT_LENGTH
     
@@ -102,7 +104,7 @@ class OCRReader:
             traceback.print_exc()
             raise OCRReaderError(f"Erro ao inicializar PaddleOCR: {e}") from e
     
-    def extract_from_page_image(self, pil_image) -> str:
+    def extract_from_page_image(self, pil_image: Image) -> str:
         """
         Extrai texto de uma imagem de página usando OCR.
         
@@ -138,52 +140,55 @@ class OCRReader:
             traceback.print_exc()
             return ""
     
-    def extract_from_pdf_page(self, pdf_path: Path, page_num: int) -> str:
+    def extract_batch(self, images: list[Image]) -> list[str]:
         """
-        Extrai texto de uma página específica do PDF usando OCR.
+        Extrai texto de múltiplas imagens de páginas usando OCR.
         
-        Converte a página para imagem e processa com PaddleOCR.
+        Processa todas as imagens mantendo ordem.
+        Inicializa PaddleOCR uma única vez antes do lote.
+        Se uma página falhar, retorna string vazia e continua com as próximas.
         
         Args:
-            pdf_path: Caminho do arquivo PDF
-            page_num: Número da página (0-indexed)
+            images: Lista de PIL Image objects
             
         Returns:
-            Texto extraído via OCR, ou string vazia se falhar
+            Lista de textos extraídos (um por imagem)
         """
+        extracted_texts = []
+        
+        # Inicializar PaddleOCR uma única vez
         try:
-            from pdf2image import convert_from_path
+            ocr = self._initialize_ocr()
+        except OCRReaderError:
+            # Se inicialização falhar, retornar lista de strings vazias
+            return [""] * len(images)
+        
+        # Processar cada imagem
+        for image in images:
+            try:
+                # Executar OCR na imagem
+                result = ocr.ocr(image, cls=True)
+                
+                if result and result[0]:
+                    extracted_lines = []
+                    for line in result[0]:
+                        if line and len(line) >= 2:
+                            text_box = line[1]
+                            if text_box and isinstance(text_box, tuple) and len(text_box) >= 1:
+                                text = text_box[0]
+                                if text:
+                                    extracted_lines.append(text)
+                    
+                    extracted_texts.append("\n".join(extracted_lines))
+                else:
+                    extracted_texts.append("")
             
-            # Converter página específica do PDF para imagem
-            # first_page e last_page são 1-indexed
-            # usar OCR_DPI de config para qualidade
-            images = convert_from_path(
-                str(pdf_path),
-                first_page=page_num + 1,
-                last_page=page_num + 1,
-                dpi=OCR_DPI
-            )
-            
-            if not images:
-                print(f"[OCREADER] Falha ao converter página {page_num+1} para imagem")
-                return ""
-            
-            # Processar primeira (e única) imagem
-            pil_image = images[0]
-            return self.extract_from_page_image(pil_image)
-            
-        except ImportError as e:
-            print("[OCREADER] ERRO: ImportError ao carregar pdf2image")
-            traceback.print_exc()
-            print(
-                "pdf2image não está instalado ou Poppler não foi encontrado.\n"
-                "Para instruções de instalação, consulte SETUP.md"
-            )
-            return ""
-        except Exception as e:
-            print(f"[OCREADER] ERRO ao extrair OCR da página {page_num+1}:")
-            traceback.print_exc()
-            return ""
+            except Exception as e:
+                print(f"[OCREADER] ERRO ao processar página do lote:")
+                traceback.print_exc()
+                extracted_texts.append("")
+        
+        return extracted_texts
     
     def should_run_ocr(self, text: str) -> bool:
         """
