@@ -11,8 +11,8 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
-from interface import MainWindow
-from config import Config
+from src.interface import MainWindow
+from src.config import Config
 
 
 def main():
