@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from config import Config
-from engine import ProcessingEngine
+from src.engine import ProcessingEngine
 
 
 class MainWindow(QMainWindow):
@@ -265,7 +265,7 @@ class MainWindow(QMainWindow):
         """
         Handler do botão GERAR TERMOS.
         
-        Escaneia a pasta de entrada, encontra PDFs e exibe lista no log.
+        Processa todos os PDFs e exibe resultado.
         """
         # Salvar configurações atuais
         self._save_config_values()
@@ -274,30 +274,42 @@ class MainWindow(QMainWindow):
         if not self._validate_inputs():
             return
         
-        self._update_status("Escaneando pasta de entrada...")
-        self.progress_bar.setValue(0)
+        self._update_status("Iniciando processamento...")
         self.btn_generate.setEnabled(False)
         
         try:
-            # Escanear pasta de entrada
-            input_path = Path(self.input_folder.text())
-            scan_result = self.engine.scan_input_folder(input_path)
+            # Processar batch
+            results = self.engine.process_batch(
+                input_dir=Path(self.input_folder.text()),
+                template_path=Path(self.template_input.text()),
+                output_dir=Path(self.output_folder.text()),
+            )
             
-            # Atualizar barra de progresso com total de PDFs
-            self.progress_bar.setMaximum(scan_result.total)
-            self.progress_bar.setValue(scan_result.total)
+            # Contar resultados
+            total = len(results)
+            success_count = sum(1 for r in results if r.success)
+            failure_count = total - success_count
             
-            # Log inicial
-            self._update_status(f"✓ Total de PDFs encontrados: {scan_result.total}")
+            # Atualizar barra de progresso
+            self.progress_bar.setMaximum(total)
+            self.progress_bar.setValue(total)
             
-            # Listar cada PDF no log
-            for pdf_file in scan_result.pdf_files:
-                self._update_status(f"  → {pdf_file.name}")
+            # Exibir resultado de cada PDF
+            for result in results:
+                if result.success:
+                    self._update_status(
+                        f"✓ {result.pdf_path.name} → {result.output_path.name}"
+                    )
+                else:
+                    self._update_status(
+                        f"✗ {result.pdf_path.name}: {result.error}"
+                    )
             
-            if scan_result.total == 0:
-                self._update_status("⚠ Nenhum arquivo PDF encontrado na pasta.")
-            else:
-                self._update_status("✓ Pronto para processar.")
+            # Resumo final
+            self._update_status("")
+            self._update_status(f"Processados: {total}")
+            self._update_status(f"Sucesso: {success_count}")
+            self._update_status(f"Falhas: {failure_count}")
         
         except ValueError as e:
             self._update_status(f"✗ Erro: {str(e)}")
