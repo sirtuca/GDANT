@@ -10,7 +10,21 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.extractors import extract_cpf_cnpj, extract_infraction_number, extract_process_number
+from src.extractors import (
+    extract_cpf_cnpj,
+    extract_infraction_number,
+    extract_process_number,
+    extract_name,
+    extract_logradouro,
+    extract_numero,
+    extract_complemento,
+    extract_bairro,
+    extract_municipio,
+    extract_uf,
+    extract_cep,
+    extract_telefone,
+    extract_email,
+)
 from src.models import ProcessData
 
 
@@ -42,10 +56,22 @@ class Parser:
         Returns:
             ProcessData preenchido com dados extraídos
         """
-        # Extrair dados usando extractors
+        # Extrair dados usando extractors - Campos existentes
         process_number = extract_process_number(text)
         infraction_number = extract_infraction_number(text)
         cpf_cnpj = extract_cpf_cnpj(text)
+        
+        # Extrair dados usando extractors - Novos campos Sprint 7.1
+        nome = extract_name(text)
+        logradouro = extract_logradouro(text)
+        numero = extract_numero(text)
+        complemento = extract_complemento(text)
+        bairro = extract_bairro(text)
+        municipio = extract_municipio(text)
+        uf = extract_uf(text)
+        cep = extract_cep(text)
+        telefone = extract_telefone(text)
+        email = extract_email(text)
         
         # Montar ProcessData com dados extraídos
         process_data = ProcessData(
@@ -54,6 +80,16 @@ class Parser:
             process_number=process_number,
             infraction_number=infraction_number,
             cpf_cnpj=cpf_cnpj,
+            nome=nome,
+            logradouro=logradouro,
+            numero=numero,
+            complemento=complemento,
+            bairro=bairro,
+            municipio=municipio,
+            uf=uf,
+            cep=cep,
+            telefone=telefone,
+            email=email,
         )
         
         return process_data
