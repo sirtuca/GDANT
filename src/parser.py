@@ -57,23 +57,63 @@ class Parser:
             ProcessData preenchido com dados extraídos
         """
         # Extrair dados usando extractors - Campos existentes
+        
+        print("\n[PARSER] Iniciando extração de process_number...")
         process_number = extract_process_number(text)
+        print(f"[PARSER] ✓ process_number extraído: {process_number}")
+        
+        print("\n[PARSER] Iniciando extração de infraction_number...")
         infraction_number = extract_infraction_number(text)
+        print(f"[PARSER] ✓ infraction_number extraído: {infraction_number}")
+        
+        print("\n[PARSER] Iniciando extração de cpf_cnpj...")
         cpf_cnpj = extract_cpf_cnpj(text)
+        print(f"[PARSER] ✓ cpf_cnpj extraído: {cpf_cnpj}")
         
         # Extrair dados usando extractors - Novos campos Sprint 7.1
+        
+        print("\n[PARSER] Iniciando extração de nome...")
         nome = extract_name(text)
+        print(f"[PARSER] ✓ nome extraído: {nome}")
+        
+        print("\n[PARSER] Iniciando extração de logradouro...")
         logradouro = extract_logradouro(text)
+        print(f"[PARSER] ✓ logradouro extraído: {logradouro}")
+        
+        print("\n[PARSER] Iniciando extração de numero...")
         numero = extract_numero(text)
+        print(f"[PARSER] ✓ numero extraído: {numero}")
+        
+        print("\n[PARSER] Iniciando extração de complemento...")
         complemento = extract_complemento(text)
+        print(f"[PARSER] ✓ complemento extraído: {complemento}")
+        
+        print("\n[PARSER] Iniciando extração de bairro...")
         bairro = extract_bairro(text)
+        print(f"[PARSER] ✓ bairro extraído: {bairro}")
+        
+        print("\n[PARSER] Iniciando extração de municipio...")
         municipio = extract_municipio(text)
+        print(f"[PARSER] ✓ municipio extraído: {municipio}")
+        
+        print("\n[PARSER] Iniciando extração de uf...")
         uf = extract_uf(text)
+        print(f"[PARSER] ✓ uf extraído: {uf}")
+        
+        print("\n[PARSER] Iniciando extração de cep...")
         cep = extract_cep(text)
+        print(f"[PARSER] ✓ cep extraído: {cep}")
+        
+        print("\n[PARSER] Iniciando extração de telefone...")
         telefone = extract_telefone(text)
+        print(f"[PARSER] ✓ telefone extraído: {telefone}")
+        
+        print("\n[PARSER] Iniciando extração de email...")
         email = extract_email(text)
+        print(f"[PARSER] ✓ email extraído: {email}")
         
         # Montar ProcessData com dados extraídos
+        print("\n[PARSER] Montando ProcessData com todos os campos...")
         process_data = ProcessData(
             source_pdf=source_pdf,
             raw_text=text,
@@ -91,5 +131,6 @@ class Parser:
             telefone=telefone,
             email=email,
         )
+        print("[PARSER] ✓ ProcessData montado com sucesso!\n")
         
         return process_data
