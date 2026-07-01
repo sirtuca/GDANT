@@ -12,16 +12,15 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication
 
 from src.interface import MainWindow
-from src.config import Config
+from src.app_config import AppConfig
 
 
 def main():
     """
     Função principal da aplicação.
     """
-    # Inicializar configurações
-    config = Config()
-    config.load()
+    # Inicializar configurações de aplicação
+    app_config = AppConfig()
     
     # Criar aplicação Qt
     app = QApplication(sys.argv)
@@ -29,7 +28,7 @@ def main():
     app.setApplicationVersion("0.1.0")
     
     # Criar e mostrar janela principal
-    window = MainWindow(config)
+    window = MainWindow(app_config)
     window.show()
     
     sys.exit(app.exec())
