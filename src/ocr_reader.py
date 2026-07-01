@@ -25,6 +25,8 @@ import traceback
 from pathlib import Path
 from typing import Optional
 
+from src.config import OCR_MIN_TEXT_LENGTH, OCR_DPI
+
 
 class OCRReaderError(Exception):
     """Erro ao processar OCR."""
@@ -44,16 +46,16 @@ class OCRReader:
     # Lazy initialization: classe variável para compartilhar instância
     _ocr_instance: Optional[object] = None
     
-    def __init__(self, ocr_min_text_length: int = 200):
+    def __init__(self, ocr_min_text_length: Optional[int] = None):
         """
         Inicializar OCRReader.
         
         Args:
             ocr_min_text_length: Mínimo de caracteres úteis para considerar 
-                               texto de pdfplumber suficiente. Se < este valor,
-                               OCR será executado na página.
+                               texto de pdfplumber suficiente. Se None, usa
+                               valor padrão de src.config.OCR_MIN_TEXT_LENGTH.
         """
-        self.ocr_min_text_length = ocr_min_text_length
+        self.ocr_min_text_length = ocr_min_text_length or OCR_MIN_TEXT_LENGTH
     
     @classmethod
     def _initialize_ocr(cls) -> object:
@@ -154,12 +156,12 @@ class OCRReader:
             
             # Converter página específica do PDF para imagem
             # first_page e last_page são 1-indexed
-            # dpi=300 para melhor qualidade OCR
+            # usar OCR_DPI de config para qualidade
             images = convert_from_path(
                 str(pdf_path),
                 first_page=page_num + 1,
                 last_page=page_num + 1,
-                dpi=300
+                dpi=OCR_DPI
             )
             
             if not images:
