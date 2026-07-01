@@ -3,6 +3,9 @@
 Gerador de documentos Word a partir de Template Mestre e ProcessData.
 
 Este módulo preenche placeholders em DOCX templates com dados extratos.
+Suporta dois formatos de placeholders:
+- Colchetes: [PROC], [AI], [DOC]
+- Chevrons: <<PROC>>, <<AI>>, <<DOC>>
 """
 
 from __future__ import annotations
@@ -26,6 +29,10 @@ class WordGenerator:
     
     Substitui placeholders nos parágrafos e tabelas com dados do ProcessData.
     Preserva formatação original (negrito, itálico, fonte, etc).
+    
+    Suporta dois formatos de placeholders:
+    - Colchetes: [PROC], [AI], [DOC]
+    - Chevrons: <<PROC>>, <<AI>>, <<DOC>>
     """
 
     # Mapa de placeholders para campos de ProcessData
@@ -44,7 +51,7 @@ class WordGenerator:
         """
         Gera DOCX preenchido a partir do template.
         
-        Substitui placeholders (<<PROC>>, <<AI>>, <<DOC>>) com dados.
+        Substitui placeholders ([PROC], <<PROC>>, etc) com dados.
         Preserva formatação original do template.
         
         Args:
@@ -92,6 +99,10 @@ class WordGenerator:
         Itera sobre runs do parágrafo e substitui placeholders diretamente.
         Preserva formatação (negrito, itálico, fonte, etc).
         
+        Suporta dois formatos:
+        - Colchetes: [PROC], [AI], [DOC]
+        - Chevrons: <<PROC>>, <<AI>>, <<DOC>>
+        
         Args:
             paragraph: Parágrafo a processar
             process_data: Dados para substituição
@@ -99,8 +110,14 @@ class WordGenerator:
         for run in paragraph.runs:
             # Substituir cada placeholder no run
             for placeholder, field_name in self.PLACEHOLDER_MAP.items():
-                placeholder_str = f"<<{placeholder}>>"
                 value = getattr(process_data, field_name, "")
                 
-                if placeholder_str in run.text:
-                    run.text = run.text.replace(placeholder_str, value)
+                # Formato com colchetes: [PROC]
+                bracket_placeholder = f"[{placeholder}]"
+                if bracket_placeholder in run.text:
+                    run.text = run.text.replace(bracket_placeholder, value)
+                
+                # Formato com chevrons: <<PROC>>
+                chevron_placeholder = f"<<{placeholder}>>"
+                if chevron_placeholder in run.text:
+                    run.text = run.text.replace(chevron_placeholder, value)
