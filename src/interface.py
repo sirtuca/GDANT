@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QLineEdit,
     QProgressBar,
-    QTextEdit,
+    QListWidget,
     QFileDialog,
 )
 from PySide6.QtCore import Qt
@@ -95,8 +95,7 @@ class MainWindow(QMainWindow):
         status_label = QLabel("Status:")
         main_layout.addWidget(status_label)
         
-        self.status_area = QTextEdit()
-        self.status_area.setReadOnly(True)
+        self.status_area = QListWidget()
         self.status_area.setMinimumHeight(120)
         main_layout.addWidget(self.status_area)
         
@@ -332,7 +331,9 @@ class MainWindow(QMainWindow):
         
         if errors:
             error_message = "Erros encontrados:\n" + "\n".join(f"• {error}" for error in errors)
-            self._update_status(error_message)
+            # Add each error as separate item for QListWidget
+            for error in errors:
+                self._update_status(f"✗ {error}")
             return False
         
         return True
@@ -344,11 +345,9 @@ class MainWindow(QMainWindow):
         Args:
             message: Mensagem a ser exibida
         """
-        self.status_area.append(message)
-        # Rolar para o final do texto
-        self.status_area.verticalScrollBar().setValue(
-            self.status_area.verticalScrollBar().maximum()
-        )
+        self.status_area.addItem(message)
+        # Rolar para o último item
+        self.status_area.scrollToItem(self.status_area.item(self.status_area.count() - 1))
     
     def closeEvent(self, event):
         """
