@@ -125,7 +125,9 @@ class ProcessingEngine:
             print("="*50)
             
             # 2. Parse dos dados
+            print("\n[ENGINE] About to call Parser.parse()...")
             process_data = self.parser.parse(pdf_text, source_pdf=pdf_path)
+            print("[ENGINE] Parser.parse() finished successfully.")
             
             # DIAGNOSTIC: Print extracted process data
             print("\n" + "="*50)
