@@ -5,7 +5,8 @@ Extractores especializados para extração de dados de Processos Administrativos
 Este módulo contém funções de extração simples e independentes.
 Cada função extrai um tipo específico de informação do texto bruto.
 
-Não contém classes, regras de negócio complexas ou lógica de parsing.
+Otimizado para Auto de Infração da Prefeitura Municipal de Campo Grande.
+Padrões baseados na estrutura real do documento, não em heurísticas genéricas.
 """
 
 from __future__ import annotations
@@ -153,26 +154,30 @@ def extract_cpf_cnpj(text: str) -> str:
 # PADRÕES CENTRALIZADOS PARA REUTILIZAÇÃO
 # ============================================================================
 
-CEP_PATTERN = r"\d{5}-\d{3}|\d{8}"
+CEP_PATTERN = r"\d{5}-?\d{3}|\d{8}"
 """Padrão para CEP: XXXXX-XXX ou XXXXXXXX"""
 
-PHONE_PATTERN = r"\(?(?:\d{2})\)?[\s\.-]?9?\d{4}[\s\.-]?\d{4}"
-"""Padrão para telefone: (XX) XXXXX-XXXX ou variações"""
-
-EMAIL_PATTERN = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
-"""Padrão para email: user@domain.ext"""
+PHONE_PATTERN = r"\d{4}-\d{4}|\d{5}-\d{4}|\(?(?:\d{2})\)?[\s\.-]?9?\d{4}[\s\.-]?\d{4}"
+"""Padrão para telefone: XXXX-XXXX, XXXXX-XXXX ou variações com area"""
 
 
 # ============================================================================
 # EXTRACTORES SPRINT 7.1 - DADOS DO CONTRIBUINTE
+# Baseados na estrutura real do Auto de Infração de Campo Grande
 # ============================================================================
 
 def extract_name(text: str) -> str:
     """
-    Extrai nome do contribuinte do texto.
+    Extrai nome do contribuinte do bloco CONTRIBUINTE.
     
-    Busca próximo a palavras-chave como "Contribuinte:", "Requerente:", "Nome:".
-    Espera que o nome venha após a palavra-chave na mesma linha.
+    Estrutura no PDF:
+    CONTRIBUINTE:
+    26920100-2 LEONARDO COSTA LEITE DE SOUZA BENITES LT
+    
+    O número antes do nome é a inscrição municipal (outro campo).
+    Captura tudo após o número até o fim da linha.
+    
+    Suporta nomes com punctuação, "&", "/", ".", commas, LTDA, ME, EIRELI, etc.
     
     Args:
         text: Texto bruto extraído do PDF
@@ -183,28 +188,28 @@ def extract_name(text: str) -> str:
     if not text:
         return ""
     
-    # Palavras-chave típicas em processos administrativos
-    keywords = ["contribuinte", "requerente", "razão social", "nome"]
-    
-    for keyword in keywords:
-        # Buscar a palavra-chave seguida de dois-pontos e depois o nome
-        # Captura tudo até fim da linha ou próxima quebra
-        pattern = rf"{keyword}[:\s]+([A-Za-zÀ-ÿ\s]+?)(?:\n|$|[0-9])"
-        match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
-        if match:
-            name = match.group(1).strip()
-            if name and len(name) > 2:  # Validar nome não vazio e com tamanho mínimo
-                return name
+    # Procurar o bloco CONTRIBUINTE: seguido de número + nome
+    # Padrão: CONTRIBUINTE: [número] [NOME até fim da linha]
+    # Número: dígitos, hífen, dígitos
+    # Nome: tudo após número até quebra de linha (permite punctuação, &, /, ., etc)
+    pattern = r"CONTRIBUINTE:\s*\d+-\d+\s+(.+?)(?:\n|$)"
+    match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
+    if match:
+        name = match.group(1).strip()
+        if name and len(name) > 2:
+            return name
     
     return ""
 
 
 def extract_logradouro(text: str) -> str:
     """
-    Extrai logradouro (rua, avenida, etc) do texto.
+    Extrai logradouro (rua, avenida, etc) do bloco de endereço.
     
-    Busca padrões como "Rua", "Avenida", "Av.", "Praça", "Trav.", etc.
-    Captura o nome do logradouro após o tipo.
+    Estrutura no PDF:
+    Endereço: RUA SPIPE CALARGE          1540 CEP: 79051560
+    
+    Captura tudo entre "Endereço:" e o número do endereço (que vem antes de CEP).
     
     Args:
         text: Texto bruto extraído do PDF
@@ -215,9 +220,9 @@ def extract_logradouro(text: str) -> str:
     if not text:
         return ""
     
-    # Buscar tipos de logradouros comuns
-    # Captura tipo + nome (até vírgula, quebra ou número)
-    pattern = r"(?:Rua|Avenida|Av\.|Av|Praça|Pça|Trav\.|Travessa|Alameda|Estrada|Rod\.|Rodovia|Passagem|Beco|Viela|Quadra|Lote)\s+([A-Za-zÀ-ÿ\s\.]+?)(?:,|$|\n|\d)"
+    # Procurar "Endereço:" seguido do logradouro até encontrar número + CEP
+    # Padrão: Endereço: [LOGRADOURO] [NUMERO] CEP:
+    pattern = r"Endereço:\s*([A-Z\sÀ-ÿ]+?)\s+\d+\s+CEP:"
     match = re.search(pattern, text, re.IGNORECASE)
     if match:
         logradouro = match.group(1).strip()
@@ -229,10 +234,12 @@ def extract_logradouro(text: str) -> str:
 
 def extract_numero(text: str) -> str:
     """
-    Extrai número do endereço do texto.
+    Extrai número do endereço do bloco de endereço.
     
-    Busca número após "nº", "nº.", "número" ou similar.
-    Aceita números simples ou com complementos como "123 A" ou "123-A".
+    Estrutura no PDF:
+    Endereço: RUA SPIPE CALARGE          1540 CEP: 79051560
+    
+    Captura o número entre logradouro e "CEP:".
     
     Args:
         text: Texto bruto extraído do PDF
@@ -243,8 +250,9 @@ def extract_numero(text: str) -> str:
     if not text:
         return ""
     
-    # Buscar padrões: "nº 123", "número 456", "n. 789", etc
-    pattern = r"(?:nº|n°|número|n\.)\s*([0-9]+(?:\s*[-/]?\s*[A-Za-z0-9]*)?)"
+    # Procurar número após logradouro, antes de CEP
+    # Padrão: [LOGRADOURO] [NUMERO] CEP:
+    pattern = r"Endereço:\s*[A-Z\sÀ-ÿ]+\s+(\d+)\s+CEP:"
     match = re.search(pattern, text, re.IGNORECASE)
     if match:
         numero = match.group(1).strip()
@@ -256,36 +264,30 @@ def extract_numero(text: str) -> str:
 
 def extract_complemento(text: str) -> str:
     """
-    Extrai complemento do endereço do texto.
+    Extrai complemento do endereço (apto, sala, bloco, etc).
     
-    Busca padrões como "Apto", "Sala", "Bloco", "Lote", etc.
-    Captura o complemento após a palavra-chave.
+    Estrutura no PDF:
+    Nem sempre presente. Se existir, vem após o número ou em linha separada.
+    
+    Como não há padrão claro no documento de exemplo, retorna string vazia.
     
     Args:
         text: Texto bruto extraído do PDF
     
     Returns:
-        Complemento do endereço ou string vazia se não encontrado
+        String vazia (tolera ausência do complemento)
     """
-    if not text:
-        return ""
-    
-    # Buscar complementos típicos
-    pattern = r"(?:Apto|Apt\.|Apartamento|Sala|Bloco|Lote|Edifício|Ed\.|Conj\.|Conjunto)\s+([A-Za-z0-9\s\-\.]*?)(?:,|$|\n|CEP)"
-    match = re.search(pattern, text, re.IGNORECASE)
-    if match:
-        complemento = match.group(1).strip()
-        if complemento:
-            return complemento
-    
     return ""
 
 
 def extract_bairro(text: str) -> str:
     """
-    Extrai bairro do texto.
+    Extrai bairro do bloco de endereço.
     
-    Busca próximo a palavras-chave como "Bairro:", "Bairro de", "Distrito:".
+    Estrutura no PDF:
+    Bairro: VILA CARLOTA
+    
+    Captura tudo até o fim da linha.
     
     Args:
         text: Texto bruto extraído do PDF
@@ -296,8 +298,8 @@ def extract_bairro(text: str) -> str:
     if not text:
         return ""
     
-    # Buscar "Bairro: " ou "Bairro de " ou "Distrito:"
-    pattern = r"(?:Bairro|Distrito)[:\s]+([A-Za-zÀ-ÿ\s]+?)(?:,|$|\n)"
+    # Procurar "Bairro:" seguido do nome do bairro até fim da linha
+    pattern = r"Bairro:\s*(.+?)(?:\n|$)"
     match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
     if match:
         bairro = match.group(1).strip()
@@ -309,9 +311,15 @@ def extract_bairro(text: str) -> str:
 
 def extract_municipio(text: str) -> str:
     """
-    Extrai município/cidade do texto.
+    Extrai município APENAS se explicitamente declarado no PDF.
     
-    Busca próximo a palavras-chave como "Cidade:", "Município:", "Localidade:".
+    TODO: O layout atual do Auto de Infração de Campo Grande não contém
+    um campo explícito de "Município:" no bloco CONTRIBUINTE.
+    Quando o padrão for identificado em outros documentos, atualizar
+    esta função com uma regex confiável.
+    
+    Se não encontrado com confiança, retorna string vazia.
+    Nunca usa defaults (ex: "Campo Grande").
     
     Args:
         text: Texto bruto extraído do PDF
@@ -322,8 +330,9 @@ def extract_municipio(text: str) -> str:
     if not text:
         return ""
     
-    # Buscar "Cidade:", "Município:", "Localidade:", etc
-    pattern = r"(?:Cidade|Município|Localidade)[:\s]+([A-Za-zÀ-ÿ\s]+?)(?:,|$|\n)"
+    # Procurar "Município:" ou "Cidade:"
+    # (padrão não identificado no layout atual, mas preparado para futura expansão)
+    pattern = r"(?:Município|Cidade)[:\s]+([A-Z\sÀ-ÿ]+?)(?:,|$|\n)"
     match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
     if match:
         municipio = match.group(1).strip()
@@ -335,16 +344,16 @@ def extract_municipio(text: str) -> str:
 
 def extract_uf(text: str) -> str:
     """
-    Extrai UF (Unidade Federativa/Estado) do texto.
+    Extrai UF (Unidade Federativa/Estado) APENAS se explicitamente declarada no PDF.
     
-    Busca siglas de estado como "SP", "RJ", "MG", etc.
-    Pode estar após "UF:", "Estado:", ou próximo a um CEP.
+    Se não encontrada com confiança, retorna string vazia.
+    Nunca usa defaults (ex: "MS").
     
     Args:
         text: Texto bruto extraído do PDF
     
     Returns:
-        UF (2 letras maiúsculas) ou string vazia se não encontrado
+        UF (2 letras maiúsculas) ou string vazia se não encontrada
     """
     if not text:
         return ""
@@ -364,23 +373,18 @@ def extract_uf(text: str) -> str:
         if uf in ufs_validas:
             return uf
     
-    # Padrão 2: UF isolado antes de CEP
-    pattern = r"\b([A-Z]{2})\s*[-,]?\s*" + CEP_PATTERN
-    match = re.search(pattern, text)
-    if match:
-        uf = match.group(1).upper()
-        if uf in ufs_validas:
-            return uf
-    
+    # Se não encontrou, retorna vazio (sem default)
     return ""
 
 
 def extract_cep(text: str) -> str:
     """
-    Extrai CEP do texto.
+    Extrai CEP do bloco de endereço.
+    
+    Estrutura no PDF:
+    Endereço: RUA SPIPE CALARGE          1540 CEP: 79051560
     
     Suporta formatos: XXXXX-XXX ou XXXXXXXX
-    Busca próximo a palavras-chave ou padrão isolado.
     
     Args:
         text: Texto bruto extraído do PDF
@@ -391,35 +395,23 @@ def extract_cep(text: str) -> str:
     if not text:
         return ""
     
-    # Padrão: XXXXX-XXX ou XXXXXXXX
-    pattern = CEP_PATTERN
-    
-    # Buscar próximo a palavras-chave (melhor resultado)
-    keywords = ["cep", "cep:"]
-    for keyword in keywords:
-        regex = rf"{keyword}[:\s]*({pattern})"
-        match = re.search(regex, text, re.IGNORECASE)
-        if match:
-            return match.group(1)
-    
-    # Fallback: buscar o padrão em qualquer lugar
-    match = re.search(pattern, text)
+    # Procurar "CEP:" seguido do CEP
+    pattern = rf"CEP:\s*({CEP_PATTERN})"
+    match = re.search(pattern, text, re.IGNORECASE)
     if match:
-        return match.group(0)
+        cep = match.group(1).strip()
+        if cep:
+            return cep
     
     return ""
 
 
 def extract_telefone(text: str) -> str:
     """
-    Extrai telefone do texto.
+    Extrai telefone do bloco de contato.
     
-    Suporta formatos:
-    - (XX) XXXXX-XXXX (celular)
-    - (XX) XXXX-XXXX (fixo)
-    - XX XXXXX-XXXX
-    - XX XXXX-XXXX
-    - (XX) 9XXXX-XXXX
+    Estrutura no PDF:
+    Telefone: 9948-5836
     
     Args:
         text: Texto bruto extraído do PDF
@@ -430,21 +422,13 @@ def extract_telefone(text: str) -> str:
     if not text:
         return ""
     
-    # Padrão para telefone
-    pattern = PHONE_PATTERN
-    
-    # Buscar próximo a palavras-chave (melhor resultado)
-    keywords = ["telefone", "fone", "tel", "celular", "mobile", "whatsapp"]
-    for keyword in keywords:
-        regex = rf"{keyword}[:\s]*({pattern})"
-        match = re.search(regex, text, re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
-    
-    # Fallback: buscar o padrão em qualquer lugar
-    match = re.search(pattern, text)
+    # Procurar "Telefone:" seguido do número
+    pattern = rf"Telefone:\s*({PHONE_PATTERN})"
+    match = re.search(pattern, text, re.IGNORECASE)
     if match:
-        return match.group(0).strip()
+        telefone = match.group(1).strip()
+        if telefone:
+            return telefone
     
     return ""
 
@@ -453,8 +437,8 @@ def extract_email(text: str) -> str:
     """
     Extrai email do texto.
     
-    Busca padrão de email: user@domain.ext
-    Busca próximo a palavras-chave quando possível.
+    Nem sempre presente no Auto de Infração.
+    Se não encontrado, retorna string vazia.
     
     Args:
         text: Texto bruto extraído do PDF
@@ -462,23 +446,4 @@ def extract_email(text: str) -> str:
     Returns:
         Email ou string vazia se não encontrado
     """
-    if not text:
-        return ""
-    
-    # Padrão para email
-    pattern = EMAIL_PATTERN
-    
-    # Buscar próximo a palavras-chave (melhor resultado)
-    keywords = ["email", "e-mail", "mail", "correio eletrônico"]
-    for keyword in keywords:
-        regex = rf"{keyword}[:\s]*({pattern})"
-        match = re.search(regex, text, re.IGNORECASE)
-        if match:
-            return match.group(1).lower()
-    
-    # Fallback: buscar o padrão em qualquer lugar
-    match = re.search(pattern, text)
-    if match:
-        return match.group(0).lower()
-    
     return ""
