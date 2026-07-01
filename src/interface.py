@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from src.config import Config
+from src.app_config import AppConfig
 from src.engine import ProcessingEngine
 
 
@@ -38,15 +38,15 @@ class MainWindow(QMainWindow):
     Nenhuma lógica de negócio é implementada aqui.
     """
     
-    def __init__(self, config: Config):
+    def __init__(self, app_config: AppConfig):
         """
         Inicializar a janela principal.
         
         Args:
-            config: Objeto de configuração da aplicação
+            app_config: Objeto de configuração da aplicação
         """
         super().__init__()
-        self.config = config
+        self.config = app_config
         self.engine = ProcessingEngine()
         
         self.setWindowTitle("GDANT - Gerador de Dívida Ativa")
